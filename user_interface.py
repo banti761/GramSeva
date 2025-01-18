@@ -1,7 +1,6 @@
 import streamlit as st
 from services.supabase_service import SupabaseService
 import uuid
-from io import BytesIO
 
 # Initialize Supabase service
 supabase = SupabaseService()
