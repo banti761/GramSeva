@@ -5,6 +5,7 @@ from events import show_events_page
 
 supabase = SupabaseService()
 
+
 def show_dashboard():
     st.header("Dashboard")
 
