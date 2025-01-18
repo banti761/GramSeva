@@ -8,6 +8,10 @@ supabase = SupabaseService()
 # Enhanced Custom CSS with modern design elements
 st.markdown("""
     <style>
+
+        .uploadfile > div:first-child {
+            color: white !important;
+        }
         /* Global Styles */
         .stApp {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -173,7 +177,7 @@ def display_events():
             st.markdown(f"""
                 <div class="event-card">
                     <div class="event-title">📝 {event.get('name', 'N/A')}</div>
-                    <div class="event-details">📅 Posted: {event.get('date', 'N/A')}</div>
+                    <div class="event-details">📅 Date: {event.get('date', 'N/A')}</div>
                     <div class="event-details">💬 {event.get('description', 'No description available')}</div>
                 </div>
             """, unsafe_allow_html=True)
