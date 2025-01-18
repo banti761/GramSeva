@@ -1,11 +1,11 @@
 import streamlit as st
 from services.supabase_service import SupabaseService
 from datetime import datetime
+from events import show_events_page
 
 supabase = SupabaseService()
 
-def main():
-    st.title("Village Problems")
+def show_dashboard():
     st.header("Dashboard")
 
     data = supabase.get_all_data()
@@ -19,18 +19,15 @@ def main():
             with cols[index % num_cols]:
                 st.image(entry["image_url"], caption="Uploaded Image")
 
-                # Check if description is None or empty string
                 description = entry.get('description')
                 if description is None or description.strip() == '':
                     st.markdown("**Description:** No description was found")
                 else:
                     st.markdown(f"**Description:** {description}")
 
-                # Format the timestamp
                 created_at = entry.get('created_at', '')
                 if created_at:
                     try:
-                        # Parse the timestamp and format it
                         dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
                         formatted_date = dt.strftime('%B %d, %Y')
                         st.markdown(f"*Posted: {formatted_date}*")
@@ -40,6 +37,19 @@ def main():
                     st.markdown("*Posted: Time not available*")
     else:
         st.info("No data available")
+
+def main():
+    st.title("Village Problems")
+
+    # Navigation
+    st.sidebar.title("Navigation")
+    page = st.sidebar.radio("Go to", ["Dashboard", "Events"])
+
+    # Display selected page
+    if page == "Dashboard":
+        show_dashboard()
+    else:
+        show_events_page()
 
 if __name__ == "__main__":
     main()

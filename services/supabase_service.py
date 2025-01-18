@@ -62,3 +62,17 @@ class SupabaseService:
         except Exception as e:
             print(f"Error fetching data: {str(e)}")
             return []
+    def add_event(self, event_data):
+        try:
+            response = self.client.table("events").insert(event_data).execute()
+            return response
+        except Exception as e:
+            print(f"Error adding event: {str(e)}")
+        return None
+    def get_all_events(self):
+        try:
+            response = self.client.table("events").select("*").execute()
+            return response.data
+        except Exception as e:
+            print(f"Error fetching events: {str(e)}")
+            return []
