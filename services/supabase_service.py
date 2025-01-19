@@ -43,13 +43,41 @@ class SupabaseService:
         except Exception as e:
             print(f"Error uploading image to storage: {str(e)}")
             return None
-
-    def upload_data(self, image_url: str, description: str):
+    def upload_audio(self, audio_file, audio_name: str) -> str:
+        """
+        Upload audio to Supabase Storage and return the public URL
+        """
         try:
-            response = self.client.table("village_problems").insert({
+            # Read audio file data directly from the file
+            file_data = audio_file.read()  # Read bytes directly from the file object
+
+            # Upload to Supabase Storage
+            response = self.client.storage.from_(self.bucket_name).upload(
+                path=audio_name,
+                file=file_data,
+                file_options={"content-type": "audio/wav"}
+            )
+
+            # Get public URL
+            audio_url = self.client.storage.from_(self.bucket_name).get_public_url(audio_name)
+            return audio_url
+
+        except Exception as e:
+            print(f"Error uploading audio to storage: {str(e)}")
+            return None
+
+    def upload_data(self, image_url: str, description: str, audio_url: str = None):
+        try:
+            data = {
                 "image_url": image_url,
-                "description": description
-            }).execute()
+                "description": description,
+            }
+
+            # Add audio_url if available
+            if audio_url:
+                data["audio_url"] = audio_url
+
+            response = self.client.table("village_problems").insert(data).execute()
             return response
         except Exception as e:
             print(f"Error uploading data: {str(e)}")

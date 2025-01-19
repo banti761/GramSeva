@@ -5,7 +5,6 @@ from events import show_events_page
 
 supabase = SupabaseService()
 
-
 def show_dashboard():
     st.header("Dashboard")
 
@@ -25,6 +24,11 @@ def show_dashboard():
                     st.markdown("**Description:** No description was found")
                 else:
                     st.markdown(f"**Description:** {description}")
+
+                # Add audio player if audio_url exists
+                audio_url = entry.get('audio_url')
+                if audio_url and audio_url.strip():
+                    st.audio(audio_url, format='audio/wav')
 
                 created_at = entry.get('created_at', '')
                 if created_at:

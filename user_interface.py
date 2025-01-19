@@ -1,6 +1,10 @@
 import streamlit as st
 from services.supabase_service import SupabaseService
 import uuid
+import sounddevice as sd
+import wavio
+import tempfile
+import os
 
 # Initialize Supabase service
 supabase = SupabaseService()
@@ -8,7 +12,6 @@ supabase = SupabaseService()
 # Enhanced Custom CSS with modern design elements
 st.markdown("""
     <style>
-
         .uploadfile > div:first-child {
             color: white !important;
         }
@@ -160,16 +163,60 @@ st.markdown("""
             padding: 1rem !important;
             color: #ff6384 !important;
         }
+
+        /* Tab styling */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 8px;
+        }
+
+        .stTabs [data-baseweb="tab"] {
+            background-color: transparent;
+            border: 1px solid rgba(132, 250, 176, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 8px 16px;
+        }
+
+        .stTabs [data-baseweb="tab"]:hover {
+            background-color: rgba(132, 250, 176, 0.1);
+        }
+
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%) !important;
+            color: #1a1a2e !important;
+        }
     </style>
 """, unsafe_allow_html=True)
+
+def record_audio():
+    duration = 10  # seconds
+    fs = 44100  # Sample rate
+
+    try:
+        st.warning("🎙️ Recording for 10 seconds...")
+        audio_data = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='float32')
+        sd.wait()
+
+        # Save to temporary WAV file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio:
+            wavio.write(temp_audio.name, audio_data, fs, sampwidth=2)
+
+        return temp_audio.name
+    except Exception as e:
+        st.error(f"Error recording audio: {str(e)}")
+        return None
 
 def reset_fields():
     st.session_state.description = ""
     if 'uploaded_image' in st.session_state:
         del st.session_state.uploaded_image
+    if 'audio_data' in st.session_state:
+        del st.session_state.audio_data
 
 def display_events():
-    st.markdown('<p class="header-text">🔍 Recent Reports</p>', unsafe_allow_html=True)
     events = supabase.get_all_events()
 
     if events:
@@ -189,6 +236,70 @@ def display_events():
             </div>
         """, unsafe_allow_html=True)
 
+def report_issue_tab():
+    if 'description' not in st.session_state:
+        st.session_state.description = ""
+
+    # File uploader with enhanced styling
+    image = st.file_uploader(
+        "📤 Upload an image of the issue",
+        type=["png", "jpg", "jpeg"],
+        key="uploaded_image"
+    )
+
+    # Description text area
+    description = st.text_area(
+        "✍️ Describe the issue (optional)",
+        value=st.session_state.description,
+        height=150,
+        placeholder="Tell us more about the problem..."
+    )
+
+    # Audio recording section
+    st.markdown("🎙️ **Add Voice Note (optional)**")
+    if st.button("Start Recording", key="record_button"):
+        audio_file = record_audio()
+        if audio_file:
+            st.session_state.audio_data = audio_file
+            st.audio(audio_file)
+            st.success("✅ Voice note recorded successfully!")
+
+    # Submit button
+    if st.button("Submit Report"):
+        if image:
+            try:
+                with st.spinner('📤 Uploading your report...'):
+                    image_name = f"{uuid.uuid4()}_{image.name}"
+                    image_url = supabase.upload_image(image, image_name)
+
+                    # Upload audio if available
+                    audio_url = None
+                    if 'audio_data' in st.session_state and st.session_state.audio_data:
+                        audio_name = f"{uuid.uuid4()}_audio.wav"
+                        with open(st.session_state.audio_data, 'rb') as audio_file:
+                            audio_url = supabase.upload_audio(audio_file, audio_name)
+
+                    if image_url:
+                        response = supabase.upload_data(
+                            image_url=image_url,
+                            description=description,
+                            audio_url=audio_url
+                        )
+                        if response:
+                            st.markdown('<div class="success-message">✅ Report submitted successfully!</div>', unsafe_allow_html=True)
+                            reset_fields()
+                            # Clean up temporary audio file
+                            if 'audio_data' in st.session_state and st.session_state.audio_data:
+                                os.remove(st.session_state.audio_data)
+                        else:
+                            st.markdown('<div class="error-message">❌ Failed to submit report to database.</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="error-message">❌ Failed to upload image.</div>', unsafe_allow_html=True)
+            except Exception as e:
+                st.markdown(f'<div class="error-message">❌ An error occurred: {str(e)}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="error-message">⚠️ Please provide an image to report the issue.</div>', unsafe_allow_html=True)
+
 def main():
     # Title with animation
     st.markdown('<p class="title-text">GramSeva</p>', unsafe_allow_html=True)
@@ -200,53 +311,17 @@ def main():
         </p>
     """, unsafe_allow_html=True)
 
-    # Create two columns with custom width ratio
-    col1, col2 = st.columns([1.2, 1])
+    # Create tabs
+    tab1, tab2 = st.tabs(["📝 Report Issue", "🔍 Upcoming Events"])
 
-    with col1:
+    # Report Issue Tab
+    with tab1:
         st.markdown('<p class="header-text">📸 Report an Issue</p>', unsafe_allow_html=True)
+        report_issue_tab()
 
-        if 'description' not in st.session_state:
-            st.session_state.description = ""
-
-        # File uploader with enhanced styling
-        image = st.file_uploader(
-            "📤 Upload an image of the issue",
-            type=["png", "jpg", "jpeg"],
-            key="uploaded_image"
-        )
-
-        # Description text area
-        description = st.text_area(
-            "✍️ Describe the issue (optional)",
-            value=st.session_state.description,
-            height=150,
-            placeholder="Tell us more about the problem..."
-        )
-
-        # Submit button
-        if st.button("Submit Report"):
-            if image:
-                try:
-                    with st.spinner('📤 Uploading your report...'):
-                        image_name = f"{uuid.uuid4()}_{image.name}"
-                        image_url = supabase.upload_image(image, image_name)
-
-                        if image_url:
-                            response = supabase.upload_data(image_url=image_url, description=description)
-                            if response:
-                                st.markdown('<div class="success-message">✅ Report submitted successfully!</div>', unsafe_allow_html=True)
-                                reset_fields()
-                            else:
-                                st.markdown('<div class="error-message">❌ Failed to submit report to database.</div>', unsafe_allow_html=True)
-                        else:
-                            st.markdown('<div class="error-message">❌ Failed to upload image.</div>', unsafe_allow_html=True)
-                except Exception as e:
-                    st.markdown(f'<div class="error-message">❌ An error occurred: {str(e)}</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="error-message">⚠️ Please provide an image to report the issue.</div>', unsafe_allow_html=True)
-
-    with col2:
+    # View Reports Tab
+    with tab2:
+        st.markdown('<p class="header-text">🔍 Upcoming Events</p>', unsafe_allow_html=True)
         display_events()
 
 if __name__ == "__main__":
