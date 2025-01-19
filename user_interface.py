@@ -1,8 +1,8 @@
 import streamlit as st
 from services.supabase_service import SupabaseService
 import uuid
-import pyaudio
-import wave
+import sounddevice as sd
+import wavio
 import tempfile
 import os
 
@@ -192,41 +192,17 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def record_audio():
-    CHUNK = 1024
-    FORMAT = pyaudio.paFloat32
-    CHANNELS = 1
-    RATE = 44100
-    RECORD_SECONDS = 10
+    duration = 10  # seconds
+    fs = 44100  # Sample rate
 
     try:
         st.warning("🎙️ Recording for 10 seconds...")
-
-        p = pyaudio.PyAudio()
-
-        stream = p.open(format=FORMAT,
-                       channels=CHANNELS,
-                       rate=RATE,
-                       input=True,
-                       frames_per_buffer=CHUNK)
-
-        frames = []
-
-        for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-            data = stream.read(CHUNK)
-            frames.append(data)
-
-        stream.stop_stream()
-        stream.close()
-        p.terminate()
+        audio_data = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='float32')
+        sd.wait()
 
         # Save to temporary WAV file
         with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_audio:
-            wf = wave.open(temp_audio.name, 'wb')
-            wf.setnchannels(CHANNELS)
-            wf.setsampwidth(p.get_sample_size(FORMAT))
-            wf.setframerate(RATE)
-            wf.writeframes(b''.join(frames))
-            wf.close()
+            wavio.write(temp_audio.name, audio_data, fs, sampwidth=2)
 
         return temp_audio.name
     except Exception as e:
