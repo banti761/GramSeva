@@ -3,3 +3,4 @@ supabase
 python-dotenv
 wavio
 pyaudio
+portaudio19-dev
